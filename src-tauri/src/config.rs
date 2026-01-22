@@ -5,10 +5,9 @@ use tauri::Manager;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Browser {
+    pub id: String, // Generate IDs using 'cuid2' crate
     pub name: String,
     pub path: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub icon: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -72,6 +71,7 @@ impl Default for Config {
         Config {
             browsers: vec![
                 Browser {
+                    id: cuid2::create_id(),
                     name: "Chrome".to_string(),
                     path: if cfg!(target_os = "windows") {
                         "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe".to_string()
@@ -80,9 +80,9 @@ impl Default for Config {
                     } else {
                         "google-chrome".to_string()
                     },
-                    icon: None,
                 },
                 Browser {
+                    id: cuid2::create_id(),
                     name: "Firefox".to_string(),
                     path: if cfg!(target_os = "windows") {
                         "C:\\Program Files\\Mozilla Firefox\\firefox.exe".to_string()
@@ -91,7 +91,6 @@ impl Default for Config {
                     } else {
                         "firefox".to_string()
                     },
-                    icon: None,
                 },
             ],
         }

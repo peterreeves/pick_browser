@@ -1,0 +1,136 @@
+/*
+    Adapted from Josh's Custom CSS Reset:
+    https://www.joshwcomeau.com/css/custom-css-reset/
+
+    And Tailwind's reset:
+    https://tailwindcss.com/docs/preflight
+*/
+
+/* Use a more-intuitive box-sizing model. */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* Remove default margin, better scroll behaviour, reset font size, allow things to shrink for flex/grid reasons */
+* {
+    margin: 0;
+    scroll-behavior: smooth;
+    font-size: inherit;
+}
+
+/* Create stacking context */
+body > div {
+    isolation: isolate;
+}
+
+/* Typographic tweaks: add accessible line-height, and improve text rendering */
+body {
+    line-height: 1.5;
+}
+
+/* Improve media defaults */
+img,
+picture,
+video,
+canvas,
+audio,
+iframe,
+embed,
+object {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+/* Remove built-in form typography styles */
+input,
+button,
+textarea,
+select {
+    font: inherit;
+}
+
+/* Avoid text overflows */
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    overflow-wrap: break-word;
+}
+
+/* Keep preformatted text and all decendants in monospace */
+pre,
+code {
+    font-family: monospace;
+    font-size: 1rem;
+}
+pre *,
+code * {
+    font-family: monospace;
+    font-size: 1rem;
+}
+
+/* Prevent buttons and labels from being selectable, and change the cursor so they look clickable */
+button,
+label {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    cursor: pointer;
+}
+
+/* Prevent button text from overflowing */
+button {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* Make disabled buttons more obvious on hover */
+button:disabled {
+    cursor: not-allowed;
+}
+
+/* Make slider inputs look clickable */
+input[type="range"] {
+    cursor: pointer;
+}
+
+/*
+    Taken from:
+    https://modernfontstacks.com/#font-stacks
+*/
+* {
+    font-family: system-ui, sans-serif;
+    font-weight: normal;
+}
+
+/* Enable 'light-dark' CSS feature */
+html {
+    /* color-scheme: light dark; */
+}
+
+/* Make it easier to use 100% of the viewport height */
+html,
+body {
+    height: 100%;
+}
+
+/* Better default styling for data lists */
+dl {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 0.25rem;
+    align-items: baseline;
+}
+dl > dt {
+    font-weight: 600;
+}

@@ -72,7 +72,8 @@
         "eslint-plugin-unicorn/require-module-specifiers": "off",
         "eslint/no-unassigned-vars": "off",
         "typescript-eslint/no-empty-object-type": "off",
-        "eslint-plugin-unicorn/switch-case-braces": "off"
+        "eslint-plugin-unicorn/switch-case-braces": "off",
+        "eslint-plugin-unicorn/prefer-global-this": "off"
     },
     "ignorePatterns": ["./node_modules"]
 }
