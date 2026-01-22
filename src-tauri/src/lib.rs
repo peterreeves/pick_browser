@@ -49,8 +49,8 @@ async fn make_default_browser() -> Result<(), String> {
         use winreg::enums::*;
         use winreg::RegKey;
 
-        let exe_path = env::current_exe()
-            .map_err(|e| format!("Failed to get executable path: {}", e))?;
+        let exe_path =
+            env::current_exe().map_err(|e| format!("Failed to get executable path: {}", e))?;
         let exe_path_str = exe_path.to_string_lossy().to_string();
 
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
@@ -209,6 +209,24 @@ async fn open_config_in_vscode(app_handle: tauri::AppHandle) -> Result<(), Strin
     Ok(())
 }
 
+#[tauri::command]
+async fn add_new_browser(name: String, path: String) -> Result<(), String> {
+    // Add a new browser to the config list
+    // 1. Create an id using `cuid2::create_id()`
+    // 2. If icon file provided (png/jpeg/webp/avif), save to `{CONFIG_DIR}/icons/{BROWSER_ID}` (The `icons` folder might need to be created first if it doesn't exist)
+    // 3. Save to config file.
+    todo!()
+}
+
+#[tauri::command]
+async fn get_browser_icon(id: String) -> Result<(), String> {
+    // Get an icon for a given browser id, if it has one
+    // Icons are located at `{CONFIG_DIR}/icons/{BROWSER_ID}`
+    // Return MIME type too if possible (png/jpeg/webp/avif)
+    // Unsure if this can be a regular Tauri command, or if a different approach is needed
+    todo!()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -219,7 +237,9 @@ pub fn run() {
             make_default_browser,
             url_to_open,
             open_url_in_browser,
-            open_config_in_vscode
+            open_config_in_vscode,
+            add_new_browser,
+            get_browser_icon
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

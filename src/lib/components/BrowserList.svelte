@@ -39,6 +39,10 @@
             <p>{browser.name}</p>
         </div>
     {/each}
+    <div class="browser">
+        <a href="/new" class="browser-icon">➕</a>
+        <p>Add new</p>
+    </div>
 </div>
 
 <style>
