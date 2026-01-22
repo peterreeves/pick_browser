@@ -325,18 +325,105 @@ fn get_icons_dir(app_handle: &tauri::AppHandle) -> Result<std::path::PathBuf, St
     Ok(app_data_dir.join("icons"))
 }
 
+#[tauri::command]
+async fn get_browser(app_handle: tauri::AppHandle, id: String) -> Result<Browser, String> {
+    let config = Config::load(&app_handle)?;
+
+    config
+        .browsers
+        .into_iter()
+        .find(|b| b.id == id)
+        .ok_or_else(|| format!("Browser with id '{}' not found", id))
+}
+
+#[tauri::command]
+async fn update_browser(
+    app_handle: tauri::AppHandle,
+    id: String,
+    name: String,
+    path: String,
+    icon: Option<String>,      // Base64-encoded image data (None = keep existing)
+    icon_mime: Option<String>, // MIME type like "image/png"
+    remove_icon: bool,         // If true, remove the existing icon
+) -> Result<(), String> {
+    let mut config = Config::load(&app_handle)?;
+
+    let browser_idx = config
+        .browsers
+        .iter()
+        .position(|b| b.id == id)
+        .ok_or_else(|| format!("Browser with id '{}' not found", id))?;
+
+    let icons_dir = get_icons_dir(&app_handle)?;
+
+    // Handle icon changes
+    let new_icon_ext = if remove_icon {
+        // Remove existing icon file if it exists
+        if let Some(old_ext) = &config.browsers[browser_idx].icon {
+            let old_icon_path = icons_dir.join(format!("{}.{}", id, old_ext));
+            let _ = std::fs::remove_file(old_icon_path);
+        }
+        None
+    } else if let (Some(icon_data), Some(mime)) = (&icon, &icon_mime) {
+        // New icon provided - save it
+        std::fs::create_dir_all(&icons_dir)
+            .map_err(|e| format!("Failed to create icons directory: {}", e))?;
+
+        let ext = match mime.as_str() {
+            "image/png" => "png",
+            "image/jpeg" => "jpg",
+            "image/webp" => "webp",
+            "image/avif" => "avif",
+            _ => return Err(format!("Unsupported image format: {}", mime)),
+        };
+
+        // Remove old icon if extension differs
+        if let Some(old_ext) = &config.browsers[browser_idx].icon {
+            if old_ext != ext {
+                let old_icon_path = icons_dir.join(format!("{}.{}", id, old_ext));
+                let _ = std::fs::remove_file(old_icon_path);
+            }
+        }
+
+        use base64::Engine;
+        let image_bytes = base64::engine::general_purpose::STANDARD
+            .decode(icon_data)
+            .map_err(|e| format!("Failed to decode icon data: {}", e))?;
+
+        let icon_path = icons_dir.join(format!("{}.{}", id, ext));
+        std::fs::write(&icon_path, image_bytes)
+            .map_err(|e| format!("Failed to save icon: {}", e))?;
+
+        Some(ext.to_string())
+    } else {
+        // Keep existing icon
+        config.browsers[browser_idx].icon.clone()
+    };
+
+    // Update browser entry
+    config.browsers[browser_idx].name = name;
+    config.browsers[browser_idx].path = path;
+    config.browsers[browser_idx].icon = new_icon_ext;
+
+    config.save(&app_handle)?;
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             get_browsers,
+            get_browser,
             is_default_browser,
             make_default_browser,
             url_to_open,
             open_url_in_browser,
             open_config_in_vscode,
             add_new_browser,
+            update_browser,
             get_browser_icon
         ])
         .run(tauri::generate_context!())

@@ -1,12 +1,13 @@
 <script lang="ts">
     import { invoke } from "@tauri-apps/api/core";
+    import { goto } from "$app/navigation";
     import { DropdownMenu } from "bits-ui";
     import Globe from "@lucide/svelte/icons/globe";
     import Plus from "@lucide/svelte/icons/plus";
-    import MoreVertical from "@lucide/svelte/icons/more-vertical";
     import Pencil from "@lucide/svelte/icons/pencil";
     import Trash2 from "@lucide/svelte/icons/trash-2";
     import type { Browser, BrowserIcon } from "./defs";
+    import EllipsisVertical from "@lucide/svelte/icons/ellipsis-vertical";
 
     type Props = {
         urlToOpen?: string;
@@ -51,17 +52,20 @@
         <div class="browser-card">
             <DropdownMenu.Root>
                 <DropdownMenu.Trigger class="browser-menu" aria-label="Browser options">
-                    <MoreVertical size={14} />
+                    <EllipsisVertical></EllipsisVertical>
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Portal>
                     <DropdownMenu.Content class="dropdown-content" sideOffset={4} align="end">
-                        <DropdownMenu.Item class="dropdown-item">
+                        <DropdownMenu.Item
+                            class="dropdown-item"
+                            onclick={() => goto(`/edit/${browser.id}`)}
+                        >
                             <Pencil size={14} />
-                            <span>Edit</span>
+                            <span>Edit {browser.name}</span>
                         </DropdownMenu.Item>
                         <DropdownMenu.Item class="dropdown-item dropdown-item-danger">
                             <Trash2 size={14} />
-                            <span>Delete</span>
+                            <span>Delete {browser.name}</span>
                         </DropdownMenu.Item>
                     </DropdownMenu.Content>
                 </DropdownMenu.Portal>
@@ -84,12 +88,14 @@
         </div>
     {/each}
 
-    <a href="/new" class="browser-card add-new">
-        <div class="browser-icon add-icon">
-            <Plus size={32} strokeWidth={1.5} />
-        </div>
-        <span class="browser-name">Add new</span>
-    </a>
+    <div class="browser-card">
+        <a href="/new" class="add-new">
+            <div class="browser-icon add-icon">
+                <Plus size={32} strokeWidth={1.5} />
+            </div>
+            <span class="browser-name">Add new</span>
+        </a>
+    </div>
 </div>
 
 <style>
@@ -103,6 +109,7 @@
         position: relative;
         display: flex;
         flex-direction: column;
+        align-items: center;
         border-radius: 0.75rem;
         background-color: var(--bg-secondary);
         border: 1px solid var(--border-color);
@@ -117,27 +124,27 @@
         box-shadow: 0 2px 8px rgb(0 0 0 / 0.05);
     }
 
-    .browser-menu {
+    :global(.browser-menu) {
         position: absolute;
-        top: 0.375rem;
-        right: 0.375rem;
-        padding: 0.25rem;
-        border-radius: 0.375rem;
+        top: 4px;
+        right: 4px;
+        padding: 0px;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
         background-color: transparent;
         border: none;
         color: var(--text-muted);
-        opacity: 0;
         transition:
             opacity 0.15s ease,
             background-color 0.15s ease;
-        z-index: 1;
     }
 
-    .browser-card:hover .browser-menu {
+    :global(.browser-card:hover) :global(.browser-menu) {
         opacity: 1;
     }
 
-    .browser-menu:hover {
+    :global(.browser-menu:hover) {
         background-color: var(--bg-tertiary);
         color: var(--text-primary);
     }
@@ -146,12 +153,13 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 0.5rem;
-        padding: 1rem 0.5rem;
+        gap: 8px;
+        padding: 8px;
         background: none;
         border: none;
         cursor: pointer;
         width: 100%;
+        aspect-ratio: 1;
     }
 
     .browser-btn:disabled {
@@ -166,6 +174,7 @@
         align-items: center;
         justify-content: center;
         color: var(--text-muted);
+        /* margin: 0px auto; */
     }
 
     .icon-img {
@@ -189,7 +198,13 @@
     .add-new {
         text-decoration: none;
         cursor: pointer;
-        border-style: dashed;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 8px;
+        aspect-ratio: 1;
     }
 
     .add-new:hover {
