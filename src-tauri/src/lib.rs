@@ -209,22 +209,120 @@ async fn open_config_in_vscode(app_handle: tauri::AppHandle) -> Result<(), Strin
     Ok(())
 }
 
-#[tauri::command]
-async fn add_new_browser(name: String, path: String) -> Result<(), String> {
-    // Add a new browser to the config list
-    // 1. Create an id using `cuid2::create_id()`
-    // 2. If icon file provided (png/jpeg/webp/avif), save to `{CONFIG_DIR}/icons/{BROWSER_ID}` (The `icons` folder might need to be created first if it doesn't exist)
-    // 3. Save to config file.
-    todo!()
+#[derive(serde::Serialize)]
+pub struct BrowserIcon {
+    pub data: String,      // Base64-encoded image data
+    pub mime_type: String, // e.g., "image/png"
 }
 
 #[tauri::command]
-async fn get_browser_icon(id: String) -> Result<(), String> {
-    // Get an icon for a given browser id, if it has one
-    // Icons are located at `{CONFIG_DIR}/icons/{BROWSER_ID}`
-    // Return MIME type too if possible (png/jpeg/webp/avif)
-    // Unsure if this can be a regular Tauri command, or if a different approach is needed
-    todo!()
+async fn add_new_browser(
+    app_handle: tauri::AppHandle,
+    name: String,
+    path: String,
+    icon: Option<String>,      // Base64-encoded image data
+    icon_mime: Option<String>, // MIME type like "image/png"
+) -> Result<(), String> {
+    let id = cuid2::create_id();
+
+    // If icon provided, save it to the icons directory
+    let icon_ext = if let (Some(icon_data), Some(mime)) = (&icon, &icon_mime) {
+        let icons_dir = get_icons_dir(&app_handle)?;
+
+        // Create icons directory if it doesn't exist
+        std::fs::create_dir_all(&icons_dir)
+            .map_err(|e| format!("Failed to create icons directory: {}", e))?;
+
+        // Determine file extension from MIME type
+        let ext = match mime.as_str() {
+            "image/png" => "png",
+            "image/jpeg" => "jpg",
+            "image/webp" => "webp",
+            "image/avif" => "avif",
+            _ => return Err(format!("Unsupported image format: {}", mime)),
+        };
+
+        // Decode base64 and save
+        use base64::Engine;
+        let image_bytes = base64::engine::general_purpose::STANDARD
+            .decode(icon_data)
+            .map_err(|e| format!("Failed to decode icon data: {}", e))?;
+
+        let icon_path = icons_dir.join(format!("{}.{}", id, ext));
+        std::fs::write(&icon_path, image_bytes)
+            .map_err(|e| format!("Failed to save icon: {}", e))?;
+
+        Some(ext.to_string())
+    } else {
+        None
+    };
+
+    // Load config, add browser, and save
+    let mut config = Config::load(&app_handle)?;
+    config.browsers.push(Browser {
+        id,
+        name,
+        path,
+        icon: icon_ext,
+    });
+    config.save(&app_handle)?;
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_browser_icon(
+    app_handle: tauri::AppHandle,
+    id: String,
+) -> Result<Option<BrowserIcon>, String> {
+    // Find the browser to get its icon extension
+    let config = Config::load(&app_handle)?;
+    let browser = config.browsers.iter().find(|b| b.id == id);
+
+    let Some(browser) = browser else {
+        return Err(format!("Browser with id '{}' not found", id));
+    };
+
+    let Some(ext) = &browser.icon else {
+        return Ok(None);
+    };
+
+    let icons_dir = get_icons_dir(&app_handle)?;
+    let icon_path = icons_dir.join(format!("{}.{}", id, ext));
+
+    if !icon_path.exists() {
+        return Ok(None);
+    }
+
+    let image_bytes =
+        std::fs::read(&icon_path).map_err(|e| format!("Failed to read icon: {}", e))?;
+
+    use base64::Engine;
+    let base64_data = base64::engine::general_purpose::STANDARD.encode(&image_bytes);
+
+    let mime_type = match ext.as_str() {
+        "png" => "image/png",
+        "jpg" => "image/jpeg",
+        "webp" => "image/webp",
+        "avif" => "image/avif",
+        _ => "application/octet-stream",
+    }
+    .to_string();
+
+    Ok(Some(BrowserIcon {
+        data: base64_data,
+        mime_type,
+    }))
+}
+
+fn get_icons_dir(app_handle: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+    use tauri::Manager;
+    let app_data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
+
+    Ok(app_data_dir.join("icons"))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

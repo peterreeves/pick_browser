@@ -8,7 +8,7 @@ pub struct Browser {
     pub id: String, // Generate IDs using 'cuid2' crate
     pub name: String,
     pub path: String,
-    pub has_icon: bool,
+    pub icon: Option<String>, // File extension if icon exists (e.g., "png", "jpg")
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -81,7 +81,7 @@ impl Default for Config {
                     } else {
                         "google-chrome".to_string()
                     },
-                    has_icon: false,
+                    icon: None,
                 },
                 Browser {
                     id: cuid2::create_id(),
@@ -93,7 +93,7 @@ impl Default for Config {
                     } else {
                         "firefox".to_string()
                     },
-                    has_icon: false,
+                    icon: None,
                 },
             ],
         }
