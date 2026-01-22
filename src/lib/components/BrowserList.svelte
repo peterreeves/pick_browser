@@ -11,9 +11,10 @@
 
     type Props = {
         urlToOpen?: string;
+        closeAfterOpen?: boolean;
     };
 
-    let { urlToOpen }: Props = $props();
+    let { urlToOpen, closeAfterOpen = true }: Props = $props();
 
     let openingBrowser = $state<string | null>(null);
 
@@ -39,10 +40,19 @@
     const openBrowser = async (id: string) => {
         try {
             openingBrowser = id;
-            await invoke<void>("open_url_in_browser", { url: urlToOpen, id: id });
+            await invoke<void>("open_url_in_browser", {
+                url: urlToOpen,
+                id: id,
+                close: closeAfterOpen,
+            });
         } finally {
             openingBrowser = null;
         }
+    };
+
+    const deleteBrowser = async (id: string) => {
+        await invoke<void>("delete_browser", { id });
+        window.location.reload();
     };
 </script>
 
@@ -63,7 +73,10 @@
                             <Pencil size={14} />
                             <span>Edit {browser.name}</span>
                         </DropdownMenu.Item>
-                        <DropdownMenu.Item class="dropdown-item dropdown-item-danger">
+                        <DropdownMenu.Item
+                            class="dropdown-item dropdown-item-danger"
+                            onclick={() => deleteBrowser(browser.id)}
+                        >
                             <Trash2 size={14} />
                             <span>Delete {browser.name}</span>
                         </DropdownMenu.Item>

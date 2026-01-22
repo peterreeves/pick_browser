@@ -165,6 +165,7 @@ async fn open_url_in_browser(
     app_handle: tauri::AppHandle,
     url: String,
     id: String,
+    close: bool,
 ) -> Result<(), String> {
     let config = Config::load(&app_handle)?;
 
@@ -178,6 +179,10 @@ async fn open_url_in_browser(
         .arg(&url)
         .spawn()
         .map_err(|e| format!("Failed to open browser '{}': {}", browser.name, e))?;
+
+    if close {
+        app_handle.exit(0);
+    }
 
     Ok(())
 }
@@ -342,9 +347,9 @@ async fn update_browser(
     id: String,
     name: String,
     path: String,
-    icon: Option<String>,      // Base64-encoded image data (None = keep existing)
+    icon: Option<String>, // Base64-encoded image data (None = keep existing)
     icon_mime: Option<String>, // MIME type like "image/png"
-    remove_icon: bool,         // If true, remove the existing icon
+    remove_icon: bool,    // If true, remove the existing icon
 ) -> Result<(), String> {
     let mut config = Config::load(&app_handle)?;
 
@@ -410,6 +415,30 @@ async fn update_browser(
     Ok(())
 }
 
+#[tauri::command]
+async fn delete_browser(app_handle: tauri::AppHandle, id: String) -> Result<(), String> {
+    let mut config = Config::load(&app_handle)?;
+
+    let browser_idx = config
+        .browsers
+        .iter()
+        .position(|b| b.id == id)
+        .ok_or_else(|| format!("Browser with id '{}' not found", id))?;
+
+    // Remove icon file if it exists
+    if let Some(ext) = &config.browsers[browser_idx].icon {
+        let icons_dir = get_icons_dir(&app_handle)?;
+        let icon_path = icons_dir.join(format!("{}.{}", id, ext));
+        let _ = std::fs::remove_file(icon_path);
+    }
+
+    // Remove browser from config
+    config.browsers.remove(browser_idx);
+    config.save(&app_handle)?;
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -424,6 +453,7 @@ pub fn run() {
             open_config_in_vscode,
             add_new_browser,
             update_browser,
+            delete_browser,
             get_browser_icon
         ])
         .run(tauri::generate_context!())

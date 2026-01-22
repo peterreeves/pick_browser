@@ -7,6 +7,7 @@
 
     let urlToOpen = $derived(await invoke<string>("url_to_open"));
     let copied = $state(false);
+    let closeAfterOpen = $state(true);
 
     const copyUrl = async () => {
         await window.navigator.clipboard.writeText(urlToOpen);
@@ -26,6 +27,7 @@
                 id="url-to-open"
                 type="url"
                 placeholder="No URL provided"
+                autocomplete="off"
             />
         </div>
         <button class="btn-icon copy-btn" onclick={copyUrl} aria-label="Copy URL">
@@ -37,7 +39,12 @@
         </button>
     </div>
 
-    <BrowserList {urlToOpen} />
+    <label class="close-after-open">
+        <input type="checkbox" bind:checked={closeAfterOpen} />
+        <span>Close after opening browser</span>
+    </label>
+
+    <BrowserList {urlToOpen} {closeAfterOpen} />
 </section>
 
 <style>
@@ -75,5 +82,21 @@
 
     .copy-btn {
         flex-shrink: 0;
+    }
+
+    .close-after-open {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        cursor: pointer;
+    }
+
+    .close-after-open input[type="checkbox"] {
+        width: 1rem;
+        height: 1rem;
+        accent-color: var(--accent);
+        cursor: pointer;
     }
 </style>
