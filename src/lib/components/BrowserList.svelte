@@ -1,5 +1,11 @@
 <script lang="ts">
     import { invoke } from "@tauri-apps/api/core";
+    import { DropdownMenu } from "bits-ui";
+    import Globe from "@lucide/svelte/icons/globe";
+    import Plus from "@lucide/svelte/icons/plus";
+    import MoreVertical from "@lucide/svelte/icons/more-vertical";
+    import Pencil from "@lucide/svelte/icons/pencil";
+    import Trash2 from "@lucide/svelte/icons/trash-2";
     import type { Browser, BrowserIcon } from "./defs";
 
     type Props = {
@@ -8,7 +14,7 @@
 
     let { urlToOpen }: Props = $props();
 
-    let openingBrowser = $state(false);
+    let openingBrowser = $state<string | null>(null);
 
     let browsers = $derived(await invoke<Array<Browser>>("get_browsers"));
 
@@ -31,10 +37,10 @@
 
     const openBrowser = async (id: string) => {
         try {
-            openingBrowser = true;
+            openingBrowser = id;
             await invoke<void>("open_url_in_browser", { url: urlToOpen, id: id });
         } finally {
-            openingBrowser = false;
+            openingBrowser = null;
         }
     };
 </script>
@@ -42,78 +48,169 @@
 <div class="browser-grid">
     {#each browsers as browser (browser.id)}
         {@const browserIcon = await getBrowserIcon(browser)}
-        <div class="browser">
-            <button class="browser-menu">
-                <!-- TODO: Add menu button to allow editing/removing this entry -->
-            </button>
+        <div class="browser-card">
+            <DropdownMenu.Root>
+                <DropdownMenu.Trigger class="browser-menu" aria-label="Browser options">
+                    <MoreVertical size={14} />
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Portal>
+                    <DropdownMenu.Content class="dropdown-content" sideOffset={4} align="end">
+                        <DropdownMenu.Item class="dropdown-item">
+                            <Pencil size={14} />
+                            <span>Edit</span>
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Item class="dropdown-item dropdown-item-danger">
+                            <Trash2 size={14} />
+                            <span>Delete</span>
+                        </DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+
             <button
                 onclick={() => openBrowser(browser.id)}
-                class="browser-icon"
-                disabled={openingBrowser}
+                class="browser-btn"
+                disabled={openingBrowser !== null}
             >
-                {#if browserIcon !== null}
-                    <img src={browserIcon} alt={browser.name} class="icon-img" />
-                {:else}
-                    🌐
-                {/if}
-                <p class="browser-name">{browser.name}</p>
+                <div class="browser-icon">
+                    {#if browserIcon !== null}
+                        <img src={browserIcon} alt="" class="icon-img" />
+                    {:else}
+                        <Globe size={40} strokeWidth={1.5} />
+                    {/if}
+                </div>
+                <span class="browser-name">{browser.name}</span>
             </button>
         </div>
     {/each}
-    <div class="browser">
-        <div class="browser-new">
-            <a href="/new">➕</a>
-            <p>Add new</p>
+
+    <a href="/new" class="browser-card add-new">
+        <div class="browser-icon add-icon">
+            <Plus size={32} strokeWidth={1.5} />
         </div>
-    </div>
+        <span class="browser-name">Add new</span>
+    </a>
 </div>
 
 <style>
     .browser-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr 1fr 1fr;
-        gap: 8px;
-        border-radius: 8px;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.75rem;
     }
 
-    .browser {
-        aspect-ratio: 1;
+    .browser-card {
         position: relative;
         display: flex;
         flex-direction: column;
-        width: 128px;
-        height: 128px;
+        border-radius: 0.75rem;
+        background-color: var(--bg-secondary);
+        border: 1px solid var(--border-color);
         overflow: hidden;
+        transition:
+            border-color 0.15s ease,
+            box-shadow 0.15s ease;
+    }
+
+    .browser-card:hover {
+        border-color: var(--zinc-400);
+        box-shadow: 0 2px 8px rgb(0 0 0 / 0.05);
     }
 
     .browser-menu {
         position: absolute;
-        top: 8px;
-        right: 8px;
-        width: 24px;
-        aspect-ratio: 1;
-        border-radius: 50%;
+        top: 0.375rem;
+        right: 0.375rem;
+        padding: 0.25rem;
+        border-radius: 0.375rem;
+        background-color: transparent;
+        border: none;
+        color: var(--text-muted);
+        opacity: 0;
+        transition:
+            opacity 0.15s ease,
+            background-color 0.15s ease;
+        z-index: 1;
     }
 
-    .browser-icon,
-    .browser-new {
-        width: 100%;
-        height: 100%;
+    .browser-card:hover .browser-menu {
+        opacity: 1;
+    }
+
+    .browser-menu:hover {
+        background-color: var(--bg-tertiary);
+        color: var(--text-primary);
+    }
+
+    .browser-btn {
         display: flex;
         flex-direction: column;
         align-items: center;
+        gap: 0.5rem;
+        padding: 1rem 0.5rem;
+        background: none;
+        border: none;
+        cursor: pointer;
+        width: 100%;
+    }
+
+    .browser-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .browser-icon {
+        width: 56px;
+        height: 56px;
+        display: flex;
+        align-items: center;
         justify-content: center;
-        text-decoration: none;
-        padding: 0px;
-        background-color: var(--zinc-200);
-        border: 1px solid var(--zinc-900);
-        border-radius: 16px;
-        overflow: hidden;
+        color: var(--text-muted);
     }
 
     .icon-img {
+        width: 100%;
+        height: 100%;
         object-fit: contain;
-        flex: 1 1 auto;
-        height: 0px;
+    }
+
+    .browser-name {
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--text-primary);
+        text-align: center;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 100%;
+        padding: 0 0.25rem;
+    }
+
+    .add-new {
+        text-decoration: none;
+        cursor: pointer;
+        border-style: dashed;
+    }
+
+    .add-new:hover {
+        background-color: var(--bg-tertiary);
+    }
+
+    .add-new .browser-icon {
+        color: var(--text-muted);
+    }
+
+    .add-new .browser-name {
+        color: var(--text-secondary);
+    }
+
+    /* Inherit dropdown styles from Settings but add danger variant */
+    :global(.dropdown-item-danger) {
+        color: var(--red-600) !important;
+    }
+
+    :global(.dropdown-item-danger:hover),
+    :global(.dropdown-item-danger[data-highlighted]) {
+        background-color: var(--red-50) !important;
     }
 </style>

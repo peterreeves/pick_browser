@@ -85,4 +85,109 @@
     --indigo-800: #3730a3;
     --indigo-900: #312e81;
     --indigo-950: #1e1b4b;
+
+    /* Semantic colors */
+    --bg-primary: var(--zinc-50);
+    --bg-secondary: var(--zinc-100);
+    --bg-tertiary: var(--zinc-200);
+    --border-color: var(--zinc-300);
+    --text-primary: var(--zinc-900);
+    --text-secondary: var(--zinc-600);
+    --text-muted: var(--zinc-400);
+    --accent: var(--blue-500);
+    --accent-hover: var(--blue-600);
+}
+
+/* Global button styles */
+button,
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    font-weight: 500;
+    transition: all 0.15s ease;
+}
+
+button:hover:not(:disabled),
+.btn:hover {
+    background-color: var(--bg-tertiary);
+    border-color: var(--zinc-400);
+}
+
+button:active:not(:disabled),
+.btn:active {
+    transform: scale(0.98);
+}
+
+button:disabled {
+    opacity: 0.5;
+}
+
+/* Primary button variant */
+.btn-primary {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+/* Ghost button variant */
+.btn-ghost {
+    background-color: transparent;
+    border-color: transparent;
+}
+
+.btn-ghost:hover:not(:disabled) {
+    background-color: var(--bg-tertiary);
+    border-color: transparent;
+}
+
+/* Icon button variant */
+.btn-icon {
+    padding: 0.5rem;
+    aspect-ratio: 1;
+}
+
+/* Global input styles */
+input[type="text"],
+input[type="url"],
+input[type="email"],
+input[type="password"] {
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input[type="text"]:focus,
+input[type="url"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+/* Global link styles */
+a {
+    color: var(--accent);
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+a:hover {
+    color: var(--accent-hover);
+    text-decoration: underline;
 }
