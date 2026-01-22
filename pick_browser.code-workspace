@@ -5,6 +5,20 @@
         }
     ],
     "settings": {
+        "editor.formatOnSave": true,
+        "files.eol": "\n",
+        "files.exclude": {
+            "**/node_modules": true,
+            "**/.svelte-kit": true
+        },
+        "oxc.enable": true,
         "svelte.enable-ts-plugin": true
+    },
+    "extensions": {
+        "recommendations": [
+            "svelte.svelte-vscode",
+            "tauri-apps.tauri-vscode",
+            "rust-lang.rust-analyzer"
+        ]
     }
 }
