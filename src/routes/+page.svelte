@@ -1,155 +1,250 @@
 <script lang="ts">
     import { invoke } from "@tauri-apps/api/core";
+    import { onMount } from "svelte";
 
-    let name = $state("");
-    let greetMsg = $state("");
+    interface Browser {
+        name: string;
+        path: string;
+        icon?: string;
+    }
 
-    async function greet(event: Event) {
-        event.preventDefault();
-        // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-        greetMsg = await invoke("greet", { name });
+    let browsers = $state<Browser[]>([]);
+    let configPath = $state<string>("");
+    let url = $state<string>("https://example.com");
+    let loading = $state(true);
+    let error = $state<string | null>(null);
+
+    onMount(async () => {
+        try {
+            const [browsersData, pathData] = await Promise.all([
+                invoke<Browser[]>("get_browsers"),
+                invoke<string>("get_config_path"),
+            ]);
+            browsers = browsersData;
+            configPath = pathData;
+        } catch (e) {
+            error = e as string;
+            console.error("Failed to load browsers:", e);
+        } finally {
+            loading = false;
+        }
+    });
+
+    function selectBrowser(browser: Browser) {
+        console.log(`Opening ${url} in ${browser.name}`);
+        // TODO: Implement browser launching
     }
 </script>
 
 <main class="container">
-    <h1>Welcome to Tauri + Svelte</h1>
+    <h1>Pick a Browser</h1>
 
-    <div class="row">
-        <a href="https://vite.dev" target="_blank">
-            <img src="/vite.svg" class="logo vite" alt="Vite Logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-            <img src="/tauri.svg" class="logo tauri" alt="Tauri Logo" />
-        </a>
-        <a href="https://svelte.dev" target="_blank">
-            <img src="/svelte.svg" class="logo svelte-kit" alt="SvelteKit Logo" />
-        </a>
-    </div>
-    <p>Click on the Tauri, Vite, and SvelteKit logos to learn more.</p>
+    {#if loading}
+        <p class="loading">Loading browsers...</p>
+    {:else if error}
+        <div class="error">
+            <p>Error loading configuration:</p>
+            <pre>{error}</pre>
+        </div>
+    {:else}
+        <div class="url-display">
+            <strong>URL:</strong>
+            <span class="url">{url}</span>
+        </div>
 
-    <form class="row" onsubmit={greet}>
-        <input id="greet-input" placeholder="Enter a name..." bind:value={name} />
-        <button type="submit">Greet</button>
-    </form>
-    <p>{greetMsg}</p>
+        <div class="browser-list">
+            {#each browsers as browser}
+                <button class="browser-card" onclick={() => selectBrowser(browser)}>
+                    <div class="browser-icon">🌐</div>
+                    <div class="browser-name">{browser.name}</div>
+                </button>
+            {/each}
+        </div>
+
+        <div class="config-info">
+            <p class="config-label">Config file location:</p>
+            <code class="config-path">{configPath}</code>
+        </div>
+    {/if}
 </main>
 
 <style>
-    .logo.vite:hover {
-        filter: drop-shadow(0 0 2em #747bff);
-    }
-
-    .logo.svelte-kit:hover {
-        filter: drop-shadow(0 0 2em #ff3e00);
-    }
-
     :root {
-        font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-        font-size: 16px;
-        line-height: 24px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+            sans-serif;
+        font-size: 14px;
+        line-height: 1.5;
         font-weight: 400;
 
-        color: #0f0f0f;
-        background-color: #f6f6f6;
+        color: #2c3e50;
+        background-color: #f8f9fa;
 
         font-synthesis: none;
         text-rendering: optimizeLegibility;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
-        -webkit-text-size-adjust: 100%;
     }
 
     .container {
-        margin: 0;
-        padding-top: 10vh;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        text-align: center;
-    }
-
-    .logo {
-        height: 6em;
-        padding: 1.5em;
-        will-change: filter;
-        transition: 0.75s;
-    }
-
-    .logo.tauri:hover {
-        filter: drop-shadow(0 0 2em #24c8db);
-    }
-
-    .row {
-        display: flex;
-        justify-content: center;
-    }
-
-    a {
-        font-weight: 500;
-        color: #646cff;
-        text-decoration: inherit;
-    }
-
-    a:hover {
-        color: #535bf2;
+        padding: 20px;
+        max-width: 500px;
+        margin: 0 auto;
     }
 
     h1 {
+        font-size: 1.5rem;
+        margin: 0 0 20px 0;
+        font-weight: 600;
         text-align: center;
     }
 
-    input,
-    button {
+    .loading,
+    .error {
+        text-align: center;
+        padding: 20px;
+    }
+
+    .error {
+        color: #e74c3c;
+    }
+
+    .error pre {
+        background: #fff;
+        padding: 10px;
+        border-radius: 6px;
+        text-align: left;
+        overflow-x: auto;
+        font-size: 0.85rem;
+    }
+
+    .url-display {
+        background: #fff;
+        padding: 12px;
         border-radius: 8px;
-        border: 1px solid transparent;
-        padding: 0.6em 1.2em;
-        font-size: 1em;
-        font-weight: 500;
-        font-family: inherit;
-        color: #0f0f0f;
-        background-color: #ffffff;
-        transition: border-color 0.25s;
-        box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
-    button {
+    .url-display strong {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #7f8c8d;
+    }
+
+    .url {
+        display: block;
+        word-break: break-all;
+        color: #3498db;
+        font-family: "SF Mono", Monaco, Consolas, monospace;
+        font-size: 0.9rem;
+    }
+
+    .browser-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .browser-card {
+        background: #fff;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 20px 10px;
         cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
 
-    button:hover {
-        border-color: #396cd8;
-    }
-    button:active {
-        border-color: #396cd8;
-        background-color: #e8e8e8;
+    .browser-card:hover {
+        border-color: #3498db;
+        box-shadow: 0 4px 12px rgba(52, 152, 219, 0.15);
+        transform: translateY(-2px);
     }
 
-    input,
-    button {
-        outline: none;
+    .browser-card:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
-    #greet-input {
-        margin-right: 5px;
+    .browser-icon {
+        font-size: 2.5rem;
+        line-height: 1;
+    }
+
+    .browser-name {
+        font-weight: 500;
+        font-size: 0.95rem;
+        color: #2c3e50;
+        text-align: center;
+    }
+
+    .config-info {
+        background: #fff;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+    }
+
+    .config-label {
+        font-size: 0.75rem;
+        color: #7f8c8d;
+        margin: 0 0 6px 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .config-path {
+        display: block;
+        font-family: "SF Mono", Monaco, Consolas, monospace;
+        font-size: 0.8rem;
+        color: #555;
+        word-break: break-all;
+        background: #f8f9fa;
+        padding: 8px;
+        border-radius: 4px;
     }
 
     @media (prefers-color-scheme: dark) {
         :root {
-            color: #f6f6f6;
-            background-color: #2f2f2f;
+            color: #ecf0f1;
+            background-color: #1e1e1e;
         }
 
-        a:hover {
-            color: #24c8db;
+        .url-display,
+        .browser-card,
+        .config-info {
+            background-color: #2d2d2d;
+            border-color: #404040;
         }
 
-        input,
-        button {
-            color: #ffffff;
-            background-color: #0f0f0f98;
+        .error pre {
+            background-color: #2d2d2d;
         }
-        button:active {
-            background-color: #0f0f0f69;
+
+        .url {
+            color: #5dade2;
+        }
+
+        .browser-name {
+            color: #ecf0f1;
+        }
+
+        .browser-card:hover {
+            border-color: #5dade2;
+            box-shadow: 0 4px 12px rgba(93, 173, 226, 0.2);
+        }
+
+        .config-path {
+            background-color: #1e1e1e;
+            color: #b0b0b0;
         }
     }
 </style>
