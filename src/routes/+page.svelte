@@ -1,14 +1,25 @@
 <script lang="ts">
+    import { invoke } from "@tauri-apps/api/core";
     import Globe from "@lucide/svelte/icons/globe";
+    import X from "@lucide/svelte/icons/x";
     import DefaultBrowser from "$lib/components/DefaultBrowser.svelte";
     import OpenUrl from "$lib/components/OpenUrl.svelte";
     import Settings from "$lib/components/Settings.svelte";
+
+    const closeApp = async () => {
+        await invoke("exit_app");
+    };
 </script>
 
 <main class="container">
     <header>
         <DefaultBrowser />
-        <Settings />
+        <div class="header-actions">
+            <Settings />
+            <button class="btn btn-ghost btn-icon close-btn" onclick={closeApp} aria-label="Close">
+                <X size={20} />
+            </button>
+        </div>
     </header>
 
     <div class="title">
@@ -34,6 +45,21 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+    }
+
+    .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .close-btn {
+        color: var(--text-muted);
+    }
+
+    .close-btn:hover {
+        color: var(--red-600);
+        background-color: var(--red-50);
     }
 
     .title {

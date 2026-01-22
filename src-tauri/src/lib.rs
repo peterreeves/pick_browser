@@ -439,6 +439,11 @@ async fn delete_browser(app_handle: tauri::AppHandle, id: String) -> Result<(), 
     Ok(())
 }
 
+#[tauri::command]
+async fn exit_app(app_handle: tauri::AppHandle) {
+    app_handle.exit(0);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -454,7 +459,8 @@ pub fn run() {
             add_new_browser,
             update_browser,
             delete_browser,
-            get_browser_icon
+            get_browser_icon,
+            exit_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
