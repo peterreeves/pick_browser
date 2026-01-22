@@ -8,8 +8,10 @@
         "editor.formatOnSave": true,
         "files.eol": "\n",
         "files.exclude": {
-            "**/node_modules": true,
-            "**/.svelte-kit": true
+            "node_modules": true,
+            "src/.svelte-kit": true,
+            "src-tauri/gen": true,
+            "src-tauri/target": true
         },
         "oxc.enable": true,
         "svelte.enable-ts-plugin": true
