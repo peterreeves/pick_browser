@@ -115,7 +115,7 @@ input[type="range"] {
 
 /* Enable 'light-dark' CSS feature */
 html {
-    /* color-scheme: light dark; */
+    color-scheme: light dark;
 }
 
 /* Make it easier to use 100% of the viewport height */

@@ -86,16 +86,30 @@
     --indigo-900: #312e81;
     --indigo-950: #1e1b4b;
 
-    /* Semantic colors */
-    --bg-primary: var(--zinc-50);
-    --bg-secondary: var(--zinc-100);
-    --bg-tertiary: var(--zinc-200);
-    --border-color: var(--zinc-300);
-    --text-primary: var(--zinc-900);
-    --text-secondary: var(--zinc-600);
-    --text-muted: var(--zinc-400);
-    --accent: var(--blue-500);
-    --accent-hover: var(--blue-600);
+    /* Semantic colors using light-dark() for automatic theme switching */
+    --bg-primary: light-dark(var(--zinc-50), var(--zinc-950));
+    --bg-secondary: light-dark(var(--zinc-100), var(--zinc-900));
+    --bg-tertiary: light-dark(var(--zinc-200), var(--zinc-800));
+    --border-color: light-dark(var(--zinc-300), var(--zinc-700));
+    --text-primary: light-dark(var(--zinc-900), var(--zinc-50));
+    --text-secondary: light-dark(var(--zinc-600), var(--zinc-400));
+    --text-muted: light-dark(var(--zinc-400), var(--zinc-500));
+    --accent: light-dark(var(--blue-500), var(--blue-400));
+    --accent-hover: light-dark(var(--blue-600), var(--blue-300));
+
+    /* Badge colors */
+    --badge-success-bg: light-dark(var(--green-100), var(--green-900));
+    --badge-success-text: light-dark(var(--green-700), var(--green-300));
+    --badge-warning-bg: light-dark(var(--yellow-100), var(--yellow-900));
+    --badge-warning-bg-hover: light-dark(var(--yellow-200), var(--yellow-800));
+    --badge-warning-text: light-dark(var(--yellow-700), var(--yellow-300));
+
+    /* Danger/destructive colors */
+    --danger-text: light-dark(var(--red-600), var(--red-400));
+    --danger-bg-hover: light-dark(var(--red-50), var(--red-900));
+
+    /* Border hover state */
+    --border-color-hover: light-dark(var(--zinc-400), var(--zinc-600));
 }
 
 /* Global button styles */
@@ -117,7 +131,7 @@ button,
 button:hover:not(:disabled),
 .btn:hover {
     background-color: var(--bg-tertiary);
-    border-color: var(--zinc-400);
+    border-color: var(--border-color-hover);
 }
 
 button:active:not(:disabled),

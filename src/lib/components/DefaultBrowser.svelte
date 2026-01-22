@@ -54,19 +54,19 @@
     }
 
     .badge-success {
-        background-color: var(--green-100);
-        color: var(--green-700);
+        background-color: var(--badge-success-bg);
+        color: var(--badge-success-text);
     }
 
     .badge-warning {
-        background-color: var(--yellow-100);
-        color: var(--yellow-700);
+        background-color: var(--badge-warning-bg);
+        color: var(--badge-warning-text);
         cursor: pointer;
         transition: background-color 0.15s ease;
     }
 
     .badge-warning:hover:not(:disabled) {
-        background-color: var(--yellow-200);
+        background-color: var(--badge-warning-bg-hover);
     }
 
     .badge-warning:disabled {

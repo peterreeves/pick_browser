@@ -133,7 +133,7 @@
     }
 
     .browser-card:hover {
-        border-color: var(--zinc-400);
+        border-color: var(--border-color-hover);
         box-shadow: 0 2px 8px rgb(0 0 0 / 0.05);
     }
 
@@ -234,11 +234,11 @@
 
     /* Inherit dropdown styles from Settings but add danger variant */
     :global(.dropdown-item-danger) {
-        color: var(--red-600) !important;
+        color: var(--danger-text) !important;
     }
 
     :global(.dropdown-item-danger:hover),
     :global(.dropdown-item-danger[data-highlighted]) {
-        background-color: var(--red-50) !important;
+        background-color: var(--danger-bg-hover) !important;
     }
 </style>
