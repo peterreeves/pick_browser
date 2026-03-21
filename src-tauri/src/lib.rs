@@ -540,17 +540,19 @@ pub fn run() {
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|app, event| {
-            use tauri::Manager;
-            if let tauri::RunEvent::Opened { urls } = event {
-                if let Some(url) = urls.first() {
-                    let url_str = url.to_string();
-                    if let Some(state) = app.try_state::<OpenedUrl>() {
-                        *state.0.lock().unwrap() = Some(url_str.clone());
+        .run(|_app, _event| {
+            #[cfg(target_os = "macos")]
+            {
+                use tauri::Manager;
+                if let tauri::RunEvent::Opened { urls } = _event {
+                    if let Some(url) = urls.first() {
+                        let url_str = url.to_string();
+                        if let Some(state) = _app.try_state::<OpenedUrl>() {
+                            *state.0.lock().unwrap() = Some(url_str.clone());
+                        }
+                        use tauri::Emitter;
+                        let _ = _app.emit("url-opened", url_str);
                     }
-                    // Emit event to frontend so it can update if already loaded
-                    use tauri::Emitter;
-                    let _ = app.emit("url-opened", url_str);
                 }
             }
         });
