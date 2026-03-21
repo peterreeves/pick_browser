@@ -1,13 +1,24 @@
 <script lang="ts">
     import { invoke } from "@tauri-apps/api/core";
+    import { listen } from "@tauri-apps/api/event";
+    import { onMount } from "svelte";
     import Copy from "@lucide/svelte/icons/copy";
     import Check from "@lucide/svelte/icons/check";
     import Link from "@lucide/svelte/icons/link";
     import BrowserList from "./BrowserList.svelte";
 
-    let urlToOpen = $derived(await invoke<string>("url_to_open"));
+    let urlToOpen = $state(await invoke<string>("url_to_open"));
     let copied = $state(false);
     let closeAfterOpen = $state(true);
+
+    onMount(() => {
+        const unlisten = listen<string>("url-opened", (event) => {
+            urlToOpen = event.payload;
+        });
+        return () => {
+            unlisten.then((fn) => fn());
+        };
+    });
 
     const copyUrl = async () => {
         await window.navigator.clipboard.writeText(urlToOpen);

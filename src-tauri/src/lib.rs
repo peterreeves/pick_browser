@@ -2,6 +2,13 @@ mod config;
 
 use config::{Browser, Config};
 use std::process::Command;
+use std::sync::Mutex;
+
+#[cfg(target_os = "macos")]
+const BUNDLE_ID: &str = "website.peterreeves.pick-browser";
+
+/// Stores the URL received via Apple Events (macOS) so the frontend can retrieve it.
+struct OpenedUrl(Mutex<Option<String>>);
 
 #[tauri::command]
 fn get_browsers(app_handle: tauri::AppHandle) -> Result<Vec<Browser>, String> {
@@ -34,9 +41,32 @@ async fn is_default_browser() -> Result<bool, String> {
         }
     }
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
     {
-        // For non-Windows platforms, return false for now
+        use core_foundation::base::TCFType;
+        use core_foundation::string::CFString;
+
+        extern "C" {
+            fn LSCopyDefaultHandlerForURLScheme(
+                url_scheme: core_foundation::string::CFStringRef,
+            ) -> core_foundation::string::CFStringRef;
+        }
+
+        let scheme = CFString::new("https");
+        let handler = unsafe { LSCopyDefaultHandlerForURLScheme(scheme.as_concrete_TypeRef()) };
+
+        if handler.is_null() {
+            return Ok(false);
+        }
+
+        let handler_cf = unsafe { CFString::wrap_under_create_rule(handler) };
+        let handler_str = handler_cf.to_string();
+
+        Ok(handler_str.eq_ignore_ascii_case(BUNDLE_ID))
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
         Ok(false)
     }
 }
@@ -141,17 +171,54 @@ async fn make_default_browser() -> Result<(), String> {
         Ok(())
     }
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
     {
-        Err("Setting default browser is only supported on Windows".to_string())
+        use core_foundation::base::TCFType;
+        use core_foundation::string::CFString;
+
+        extern "C" {
+            fn LSSetDefaultHandlerForURLScheme(
+                url_scheme: core_foundation::string::CFStringRef,
+                handler_bundle_id: core_foundation::string::CFStringRef,
+            ) -> i32;
+        }
+
+        let bundle_id = CFString::new(BUNDLE_ID);
+
+        for scheme in &["http", "https"] {
+            let scheme_cf = CFString::new(scheme);
+            let result = unsafe {
+                LSSetDefaultHandlerForURLScheme(
+                    scheme_cf.as_concrete_TypeRef(),
+                    bundle_id.as_concrete_TypeRef(),
+                )
+            };
+            if result != 0 {
+                return Err(format!(
+                    "Failed to set default handler for {}: OSStatus {}",
+                    scheme, result
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        Err("Setting default browser is not supported on this platform".to_string())
     }
 }
 
 #[tauri::command]
-async fn url_to_open() -> Result<String, String> {
+async fn url_to_open(state: tauri::State<'_, OpenedUrl>) -> Result<String, String> {
+    // Check for URL received via Apple Events (macOS)
+    if let Some(url) = state.0.lock().unwrap().as_ref() {
+        return Ok(url.clone());
+    }
+
+    // Fall back to command-line arguments (Windows)
     let args: Vec<String> = std::env::args().collect();
-    // The URL is typically passed as the first argument after the executable
-    // Filter for arguments that look like URLs (start with http:// or https://)
     for arg in args.iter().skip(1) {
         if arg.starts_with("http://") || arg.starts_with("https://") {
             return Ok(arg.clone());
@@ -203,7 +270,15 @@ async fn open_config_in_vscode(app_handle: tauri::AppHandle) -> Result<(), Strin
             .map_err(|e| format!("Failed to open VS Code: {}", e))?;
     }
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .args(["-a", "Visual Studio Code", &config_path.to_string_lossy()])
+            .spawn()
+            .map_err(|e| format!("Failed to open VS Code: {}", e))?;
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
         Command::new("code")
             .arg(&config_path)
@@ -448,6 +523,7 @@ async fn exit_app(app_handle: tauri::AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .manage(OpenedUrl(Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![
             get_browsers,
             get_browser,
@@ -462,6 +538,20 @@ pub fn run() {
             get_browser_icon,
             exit_app
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            use tauri::Manager;
+            if let tauri::RunEvent::Opened { urls } = event {
+                if let Some(url) = urls.first() {
+                    let url_str = url.to_string();
+                    if let Some(state) = app.try_state::<OpenedUrl>() {
+                        *state.0.lock().unwrap() = Some(url_str.clone());
+                    }
+                    // Emit event to frontend so it can update if already loaded
+                    use tauri::Emitter;
+                    let _ = app.emit("url-opened", url_str);
+                }
+            }
+        });
 }
