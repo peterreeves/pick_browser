@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::Manager;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,60 +67,75 @@ impl Config {
     }
 }
 
+/// Check whether a browser binary exists at the given path.
+fn browser_is_installed(path: &str) -> bool {
+    // Absolute paths: check the file directly
+    if Path::new(path).is_absolute() {
+        return Path::new(path).exists();
+    }
+
+    // Bare command names (Linux): look up via `which`
+    std::process::Command::new("which")
+        .arg(path)
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
 impl Default for Config {
     fn default() -> Self {
-        Config {
-            browsers: vec![
-                Browser {
-                    id: cuid2::create_id(),
-                    name: "Chrome".to_string(),
-                    path: if cfg!(target_os = "windows") {
-                        "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe".to_string()
-                    } else if cfg!(target_os = "macos") {
-                        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome".to_string()
-                    } else {
-                        "google-chrome".to_string()
-                    },
-                    icon: None,
+        let candidates: Vec<(&str, &str)> = vec![
+            (
+                "Chrome",
+                if cfg!(target_os = "windows") {
+                    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+                } else if cfg!(target_os = "macos") {
+                    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+                } else {
+                    "google-chrome"
                 },
-                Browser {
-                    id: cuid2::create_id(),
-                    name: "Firefox".to_string(),
-                    path: if cfg!(target_os = "windows") {
-                        "C:\\Program Files\\Mozilla Firefox\\firefox.exe".to_string()
-                    } else if cfg!(target_os = "macos") {
-                        "/Applications/Firefox.app/Contents/MacOS/firefox".to_string()
-                    } else {
-                        "firefox".to_string()
-                    },
-                    icon: None,
+            ),
+            (
+                "Firefox",
+                if cfg!(target_os = "windows") {
+                    "C:\\Program Files\\Mozilla Firefox\\firefox.exe"
+                } else if cfg!(target_os = "macos") {
+                    "/Applications/Firefox.app/Contents/MacOS/firefox"
+                } else {
+                    "firefox"
                 },
-                Browser {
-                    id: cuid2::create_id(),
-                    name: "Edge".to_string(),
-                    path: if cfg!(target_os = "windows") {
-                        "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe"
-                            .to_string()
-                    } else if cfg!(target_os = "macos") {
-                        "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"
-                            .to_string()
-                    } else {
-                        "microsoft-edge".to_string()
-                    },
-                    icon: None,
+            ),
+            (
+                "Edge",
+                if cfg!(target_os = "windows") {
+                    "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe"
+                } else if cfg!(target_os = "macos") {
+                    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"
+                } else {
+                    "microsoft-edge"
                 },
-                Browser {
-                    id: cuid2::create_id(),
-                    name: "Safari".to_string(),
-                    path: if cfg!(target_os = "macos") {
-                        "/Applications/Safari.app/Contents/MacOS/Safari".to_string()
-                    } else {
-                        // Safari is only available on macOS, but include a placeholder
-                        "safari".to_string()
-                    },
-                    icon: None,
+            ),
+            (
+                "Safari",
+                if cfg!(target_os = "macos") {
+                    "/Applications/Safari.app/Contents/MacOS/Safari"
+                } else {
+                    "safari"
                 },
-            ],
-        }
+            ),
+        ];
+
+        let browsers = candidates
+            .into_iter()
+            .filter(|(_, path)| browser_is_installed(path))
+            .map(|(name, path)| Browser {
+                id: cuid2::create_id(),
+                name: name.to_string(),
+                path: path.to_string(),
+                icon: None,
+            })
+            .collect();
+
+        Config { browsers }
     }
 }
