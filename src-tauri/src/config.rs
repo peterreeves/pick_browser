@@ -95,6 +95,31 @@ impl Default for Config {
                     },
                     icon: None,
                 },
+                Browser {
+                    id: cuid2::create_id(),
+                    name: "Edge".to_string(),
+                    path: if cfg!(target_os = "windows") {
+                        "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe"
+                            .to_string()
+                    } else if cfg!(target_os = "macos") {
+                        "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"
+                            .to_string()
+                    } else {
+                        "microsoft-edge".to_string()
+                    },
+                    icon: None,
+                },
+                Browser {
+                    id: cuid2::create_id(),
+                    name: "Safari".to_string(),
+                    path: if cfg!(target_os = "macos") {
+                        "/Applications/Safari.app/Contents/MacOS/Safari".to_string()
+                    } else {
+                        // Safari is only available on macOS, but include a placeholder
+                        "safari".to_string()
+                    },
+                    icon: None,
+                },
             ],
         }
     }
