@@ -11,9 +11,20 @@
     let copied = $state(false);
     let closeAfterOpen = $state(true);
 
+    const checkAndAutoOpen = async (url: string) => {
+        if (!url) return;
+        const browserId = await invoke<string | null>("check_rules", { url });
+        if (browserId) {
+            await invoke("open_url_in_browser", { url, id: browserId, close: closeAfterOpen });
+        }
+    };
+
     onMount(() => {
+        checkAndAutoOpen(urlToOpen);
+
         const unlisten = listen<string>("url-opened", (event) => {
             urlToOpen = event.payload;
+            checkAndAutoOpen(event.payload);
         });
         return () => {
             unlisten.then((fn) => fn());
