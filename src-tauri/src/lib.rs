@@ -20,24 +20,41 @@ fn get_browsers(app_handle: tauri::AppHandle) -> Result<Vec<Browser>, String> {
 async fn is_default_browser() -> Result<bool, String> {
     #[cfg(target_os = "windows")]
     {
-        use winreg::enums::*;
-        use winreg::RegKey;
+        use windows::core::HSTRING;
+        use windows::Win32::System::Com::{
+            CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED,
+        };
+        use windows::Win32::UI::Shell::{
+            ApplicationAssociationRegistration, IApplicationAssociationRegistration, AL_EFFECTIVE,
+            AT_URLPROTOCOL,
+        };
 
-        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        unsafe {
+            // COM must be initialised on this thread
+            let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
 
-        // Check the UserChoice for HTTP protocol
-        let user_choice_path =
-            r"Software\Microsoft\Windows\Shell\Associations\UrlAssociations\http\UserChoice";
+            let reg: IApplicationAssociationRegistration = CoCreateInstance(
+                &ApplicationAssociationRegistration,
+                None,
+                CLSCTX_INPROC_SERVER,
+            )
+            .map_err(|e| format!("Failed to create COM instance: {}", e))?;
 
-        match hkcu.open_subkey(user_choice_path) {
-            Ok(key) => {
-                let prog_id: Result<String, _> = key.get_value("ProgId");
-                match prog_id {
-                    Ok(id) => Ok(id.contains("PickBrowser") || id.contains("pick_browser")),
-                    Err(_) => Ok(false),
+            for scheme in &["http", "https"] {
+                let scheme_h = HSTRING::from(*scheme);
+                let prog_id = reg
+                    .QueryCurrentDefault(&scheme_h, AT_URLPROTOCOL, AL_EFFECTIVE)
+                    .map_err(|e| format!("Failed to query default for {}: {}", scheme, e))?;
+
+                let prog_id_str = prog_id
+                    .to_string()
+                    .map_err(|e| format!("Failed to read ProgId string: {}", e))?;
+                if !prog_id_str.contains("PickBrowser") && !prog_id_str.contains("pick_browser") {
+                    return Ok(false);
                 }
             }
-            Err(_) => Ok(false),
+
+            Ok(true)
         }
     }
 
@@ -335,8 +352,7 @@ async fn add_new_browser(
         Some(ext.to_string())
     } else {
         // No custom icon provided — try to use a bundled icon for known browsers
-        get_known_browser_asset(&name)
-            .and_then(|asset| copy_bundled_icon(&app_handle, asset, &id))
+        get_known_browser_asset(&name).and_then(|asset| copy_bundled_icon(&app_handle, asset, &id))
     };
 
     // Load config, add browser, and save
@@ -529,8 +545,7 @@ async fn add_rule(
     browser_id: String,
 ) -> Result<(), String> {
     // Validate the regex pattern
-    regex::Regex::new(&pattern)
-        .map_err(|e| format!("Invalid regex pattern: {}", e))?;
+    regex::Regex::new(&pattern).map_err(|e| format!("Invalid regex pattern: {}", e))?;
 
     let mut config = Config::load(&app_handle)?;
 
@@ -557,8 +572,7 @@ async fn update_rule(
     browser_id: String,
 ) -> Result<(), String> {
     // Validate the regex pattern
-    regex::Regex::new(&pattern)
-        .map_err(|e| format!("Invalid regex pattern: {}", e))?;
+    regex::Regex::new(&pattern).map_err(|e| format!("Invalid regex pattern: {}", e))?;
 
     let mut config = Config::load(&app_handle)?;
 
