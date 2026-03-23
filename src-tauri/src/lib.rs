@@ -1,6 +1,6 @@
 mod config;
 
-use config::{Browser, Config, Rule};
+use config::{copy_bundled_icon, get_known_browser_asset, Browser, Config, Rule};
 use std::process::Command;
 use std::sync::Mutex;
 
@@ -334,7 +334,9 @@ async fn add_new_browser(
 
         Some(ext.to_string())
     } else {
-        None
+        // No custom icon provided — try to use a bundled icon for known browsers
+        get_known_browser_asset(&name)
+            .and_then(|asset| copy_bundled_icon(&app_handle, asset, &id))
     };
 
     // Load config, add browser, and save
