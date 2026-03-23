@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
-use tauri::Manager;
 use tauri::path::BaseDirectory;
+use tauri::Manager;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Browser {
@@ -15,8 +15,8 @@ pub struct Browser {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Rule {
     pub id: String,
-    pub pattern: String,     // Regex pattern to match against URLs
-    pub browser_id: String,  // ID of the browser to open matching URLs in
+    pub pattern: String,    // Regex pattern to match against URLs
+    pub browser_id: String, // ID of the browser to open matching URLs in
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -126,16 +126,9 @@ pub fn copy_bundled_icon(
         return None;
     }
 
-    let ext = Path::new(asset_path)
-        .extension()?
-        .to_str()?
-        .to_string();
+    let ext = Path::new(asset_path).extension()?.to_str()?.to_string();
 
-    let icons_dir = app_handle
-        .path()
-        .app_data_dir()
-        .ok()?
-        .join("icons");
+    let icons_dir = app_handle.path().app_data_dir().ok()?.join("icons");
 
     fs::create_dir_all(&icons_dir).ok()?;
 
