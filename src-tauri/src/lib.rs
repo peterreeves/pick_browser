@@ -20,25 +20,64 @@ fn get_browsers(app_handle: tauri::AppHandle) -> Result<Vec<Browser>, String> {
 async fn is_default_browser() -> Result<bool, String> {
     #[cfg(target_os = "windows")]
     {
+        use std::env;
         use winreg::enums::*;
         use winreg::RegKey;
 
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        let hkcr = RegKey::predef(HKEY_CLASSES_ROOT);
 
-        // Check the UserChoice for HTTP protocol
-        let user_choice_path =
-            r"Software\Microsoft\Windows\Shell\Associations\UrlAssociations\http\UserChoice";
+        let our_exe = env::current_exe()
+            .map_err(|e| format!("Failed to get executable path: {}", e))?
+            .to_string_lossy()
+            .to_lowercase();
 
-        match hkcu.open_subkey(user_choice_path) {
-            Ok(key) => {
-                let prog_id: Result<String, _> = key.get_value("ProgId");
-                match prog_id {
-                    Ok(id) => Ok(id.contains("PickBrowser") || id.contains("pick_browser")),
-                    Err(_) => Ok(false),
-                }
+        // Check both http and https — both must point to us
+        for scheme in &["http", "https"] {
+            let user_choice_path = format!(
+                r"Software\Microsoft\Windows\Shell\Associations\UrlAssociations\{}\UserChoice",
+                scheme
+            );
+
+            let prog_id = match hkcu.open_subkey(&user_choice_path) {
+                Ok(key) => match key.get_value::<String, _>("ProgId") {
+                    Ok(id) => id,
+                    Err(_) => return Ok(false),
+                },
+                Err(_) => return Ok(false),
+            };
+
+            // Quick check: if the ProgId contains our name, it's ours
+            if prog_id.contains("PickBrowser") || prog_id.contains("pick_browser") {
+                continue;
             }
-            Err(_) => Ok(false),
+
+            // Otherwise, resolve the ProgId's shell\open\command to see if it
+            // points at our executable (handles AppX hashes and other formats)
+            let command_path = format!(r"{}\shell\open\command", prog_id);
+
+            // Try HKCU\Software\Classes first, then HKCR
+            let command_str: Option<String> = hkcu
+                .open_subkey(format!(r"Software\Classes\{}", command_path))
+                .and_then(|key| key.get_value(""))
+                .ok()
+                .or_else(|| {
+                    hkcr.open_subkey(&command_path)
+                        .and_then(|key| key.get_value(""))
+                        .ok()
+                });
+
+            match command_str {
+                Some(cmd) => {
+                    if !cmd.to_lowercase().contains(&our_exe) {
+                        return Ok(false);
+                    }
+                }
+                None => return Ok(false),
+            }
         }
+
+        Ok(true)
     }
 
     #[cfg(target_os = "macos")]
