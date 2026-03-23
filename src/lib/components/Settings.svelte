@@ -1,9 +1,11 @@
 <script lang="ts">
     import { invoke } from "@tauri-apps/api/core";
+    import { goto } from "$app/navigation";
     import { DropdownMenu } from "bits-ui";
     import Settings2 from "@lucide/svelte/icons/settings-2";
     import FileCode from "@lucide/svelte/icons/file-code";
     import RefreshCw from "@lucide/svelte/icons/refresh-cw";
+    import Regex from "@lucide/svelte/icons/regex";
 
     const openInVscode = async () => {
         await invoke<void>("open_config_in_vscode");
@@ -21,6 +23,10 @@
 
     <DropdownMenu.Portal>
         <DropdownMenu.Content class="dropdown-content" sideOffset={4} align="end">
+            <DropdownMenu.Item class="dropdown-item" onclick={() => goto("/rules")}>
+                <Regex size={16} />
+                <span>URL Rules</span>
+            </DropdownMenu.Item>
             <DropdownMenu.Item class="dropdown-item" onclick={openInVscode}>
                 <FileCode size={16} />
                 <span>Open Config in VS Code</span>

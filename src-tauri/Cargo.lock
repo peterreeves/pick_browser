@@ -2682,6 +2682,7 @@ dependencies = [
  "base64 0.22.1",
  "core-foundation",
  "cuid2",
+ "regex",
  "serde",
  "serde_json",
  "tauri",

@@ -11,9 +11,18 @@ pub struct Browser {
     pub icon: Option<String>, // File extension if icon exists (e.g., "png", "jpg")
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Rule {
+    pub id: String,
+    pub pattern: String,     // Regex pattern to match against URLs
+    pub browser_id: String,  // ID of the browser to open matching URLs in
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     pub browsers: Vec<Browser>,
+    #[serde(default)]
+    pub rules: Vec<Rule>,
 }
 
 impl Config {
@@ -136,6 +145,9 @@ impl Default for Config {
             })
             .collect();
 
-        Config { browsers }
+        Config {
+            browsers,
+            rules: Vec::new(),
+        }
     }
 }

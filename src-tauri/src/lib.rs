@@ -1,6 +1,6 @@
 mod config;
 
-use config::{Browser, Config};
+use config::{Browser, Config, Rule};
 use std::process::Command;
 use std::sync::Mutex;
 
@@ -515,6 +515,110 @@ async fn delete_browser(app_handle: tauri::AppHandle, id: String) -> Result<(), 
 }
 
 #[tauri::command]
+fn get_rules(app_handle: tauri::AppHandle) -> Result<Vec<Rule>, String> {
+    let config = Config::load(&app_handle)?;
+    Ok(config.rules)
+}
+
+#[tauri::command]
+async fn add_rule(
+    app_handle: tauri::AppHandle,
+    pattern: String,
+    browser_id: String,
+) -> Result<(), String> {
+    // Validate the regex pattern
+    regex::Regex::new(&pattern)
+        .map_err(|e| format!("Invalid regex pattern: {}", e))?;
+
+    let mut config = Config::load(&app_handle)?;
+
+    // Validate browser_id exists (empty means "prompt to choose")
+    if !browser_id.is_empty() && !config.browsers.iter().any(|b| b.id == browser_id) {
+        return Err(format!("Browser with id '{}' not found", browser_id));
+    }
+
+    config.rules.push(Rule {
+        id: cuid2::create_id(),
+        pattern,
+        browser_id,
+    });
+    config.save(&app_handle)?;
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn update_rule(
+    app_handle: tauri::AppHandle,
+    id: String,
+    pattern: String,
+    browser_id: String,
+) -> Result<(), String> {
+    // Validate the regex pattern
+    regex::Regex::new(&pattern)
+        .map_err(|e| format!("Invalid regex pattern: {}", e))?;
+
+    let mut config = Config::load(&app_handle)?;
+
+    // Validate browser_id exists (empty means "prompt to choose")
+    if !browser_id.is_empty() && !config.browsers.iter().any(|b| b.id == browser_id) {
+        return Err(format!("Browser with id '{}' not found", browser_id));
+    }
+
+    let rule = config
+        .rules
+        .iter_mut()
+        .find(|r| r.id == id)
+        .ok_or_else(|| format!("Rule with id '{}' not found", id))?;
+
+    rule.pattern = pattern;
+    rule.browser_id = browser_id;
+    config.save(&app_handle)?;
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn delete_rule(app_handle: tauri::AppHandle, id: String) -> Result<(), String> {
+    let mut config = Config::load(&app_handle)?;
+
+    let rule_idx = config
+        .rules
+        .iter()
+        .position(|r| r.id == id)
+        .ok_or_else(|| format!("Rule with id '{}' not found", id))?;
+
+    config.rules.remove(rule_idx);
+    config.save(&app_handle)?;
+
+    Ok(())
+}
+
+/// Check if a URL matches any rule. Returns the browser_id of the first matching rule, or null.
+/// An empty browser_id means "prompt to choose" — return null to let the user pick.
+#[tauri::command]
+fn check_rules(app_handle: tauri::AppHandle, url: String) -> Result<Option<String>, String> {
+    let config = Config::load(&app_handle)?;
+
+    for rule in &config.rules {
+        let re = regex::Regex::new(&rule.pattern)
+            .map_err(|e| format!("Invalid regex pattern '{}': {}", rule.pattern, e))?;
+        if re.is_match(&url) {
+            // Empty browser_id means "prompt to choose" — stop checking further rules
+            if rule.browser_id.is_empty() {
+                return Ok(None);
+            }
+            // Verify the browser still exists
+            if config.browsers.iter().any(|b| b.id == rule.browser_id) {
+                return Ok(Some(rule.browser_id.clone()));
+            }
+        }
+    }
+
+    Ok(None)
+}
+
+#[tauri::command]
 async fn exit_app(app_handle: tauri::AppHandle) {
     app_handle.exit(0);
 }
@@ -536,6 +640,11 @@ pub fn run() {
             update_browser,
             delete_browser,
             get_browser_icon,
+            get_rules,
+            add_rule,
+            update_rule,
+            delete_rule,
+            check_rules,
             exit_app
         ])
         .build(tauri::generate_context!())

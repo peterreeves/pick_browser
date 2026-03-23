@@ -9,3 +9,9 @@ export type BrowserIcon = {
     data: string; // Base64-encoded image data
     mime_type: string;
 };
+
+export type Rule = {
+    readonly id: string;
+    pattern: string; // Regex pattern to match against URLs
+    browser_id: string; // ID of the browser to open matching URLs in
+};
