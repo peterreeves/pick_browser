@@ -29,8 +29,10 @@ async fn is_default_browser() -> Result<bool, String> {
             AT_URLPROTOCOL,
         };
 
+        // SAFETY: COM is initialised on this thread before use. The
+        // IApplicationAssociationRegistration interface is a stable Windows API
+        // and QueryCurrentDefault returns an owned PWSTR that is valid until dropped.
         unsafe {
-            // COM must be initialised on this thread
             let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
 
             let reg: IApplicationAssociationRegistration = CoCreateInstance(
@@ -70,12 +72,18 @@ async fn is_default_browser() -> Result<bool, String> {
         }
 
         let scheme = CFString::new("https");
+        // SAFETY: `scheme` is a valid CFString that outlives this call.
+        // LSCopyDefaultHandlerForURLScheme is a stable Core Foundation API that
+        // returns a newly-created CFStringRef (or null), which we check below.
         let handler = unsafe { LSCopyDefaultHandlerForURLScheme(scheme.as_concrete_TypeRef()) };
 
         if handler.is_null() {
             return Ok(false);
         }
 
+        // SAFETY: `handler` is non-null (checked above) and was returned by a
+        // "Copy" function, so we own the reference. `wrap_under_create_rule`
+        // adopts ownership and will release it when `handler_cf` is dropped.
         let handler_cf = unsafe { CFString::wrap_under_create_rule(handler) };
         let handler_str = handler_cf.to_string();
 
@@ -204,6 +212,9 @@ async fn make_default_browser() -> Result<(), String> {
 
         for scheme in &["http", "https"] {
             let scheme_cf = CFString::new(scheme);
+            // SAFETY: Both `scheme_cf` and `bundle_id` are valid CFStrings that
+            // outlive this call. LSSetDefaultHandlerForURLScheme is a stable
+            // Launch Services API; the OSStatus return code is checked below.
             let result = unsafe {
                 LSSetDefaultHandlerForURLScheme(
                     scheme_cf.as_concrete_TypeRef(),
