@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::Manager;
+use tauri::path::BaseDirectory;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Browser {
@@ -32,7 +33,7 @@ impl Config {
 
         if !config_path.exists() {
             // Create default config if it doesn't exist
-            let default_config = Self::default();
+            let default_config = Self::create_default(app_handle)?;
             default_config.save(app_handle)?;
             return Ok(default_config);
         }
@@ -91,8 +92,63 @@ fn browser_is_installed(path: &str) -> bool {
         .unwrap_or(false)
 }
 
-impl Default for Config {
-    fn default() -> Self {
+/// Known browsers and their bundled icon asset filenames.
+const KNOWN_BROWSER_ICONS: &[(&str, &str)] = &[
+    ("chrome", "assets/chrome.png"),
+    ("firefox", "assets/firefox.png"),
+    ("edge", "assets/edge.png"),
+    ("safari", "assets/safari.png"),
+];
+
+/// Returns the bundled asset path for a browser name if it matches a known browser.
+/// Matching is case-insensitive and checks if the name contains the known browser key.
+pub fn get_known_browser_asset(name: &str) -> Option<&'static str> {
+    let name_normalized = name.trim().to_lowercase();
+    KNOWN_BROWSER_ICONS
+        .iter()
+        .find(|(key, _)| name_normalized == *key)
+        .map(|(_, asset)| *asset)
+}
+
+/// Copies a bundled browser icon asset to the user's icon directory.
+/// Returns the file extension on success, or None if the asset can't be resolved.
+pub fn copy_bundled_icon(
+    app_handle: &tauri::AppHandle,
+    asset_path: &str,
+    browser_id: &str,
+) -> Option<String> {
+    let resource_path = app_handle
+        .path()
+        .resolve(asset_path, BaseDirectory::Resource)
+        .ok()?;
+
+    if !resource_path.exists() {
+        return None;
+    }
+
+    let ext = Path::new(asset_path)
+        .extension()?
+        .to_str()?
+        .to_string();
+
+    let icons_dir = app_handle
+        .path()
+        .app_data_dir()
+        .ok()?
+        .join("icons");
+
+    fs::create_dir_all(&icons_dir).ok()?;
+
+    let dest = icons_dir.join(format!("{}.{}", browser_id, ext));
+    fs::copy(&resource_path, &dest).ok()?;
+
+    Some(ext)
+}
+
+impl Config {
+    /// Create the default config by detecting installed browsers and copying
+    /// bundled icons for known browsers.
+    fn create_default(app_handle: &tauri::AppHandle) -> Result<Self, String> {
         let candidates: Vec<(&str, &str)> = vec![
             (
                 "Chrome",
@@ -137,17 +193,22 @@ impl Default for Config {
         let browsers = candidates
             .into_iter()
             .filter(|(_, path)| browser_is_installed(path))
-            .map(|(name, path)| Browser {
-                id: cuid2::create_id(),
-                name: name.to_string(),
-                path: path.to_string(),
-                icon: None,
+            .map(|(name, path)| {
+                let id = cuid2::create_id();
+                let icon = get_known_browser_asset(name)
+                    .and_then(|asset| copy_bundled_icon(app_handle, asset, &id));
+                Browser {
+                    id,
+                    name: name.to_string(),
+                    path: path.to_string(),
+                    icon,
+                }
             })
             .collect();
 
-        Config {
+        Ok(Config {
             browsers,
             rules: Vec::new(),
-        }
+        })
     }
 }
