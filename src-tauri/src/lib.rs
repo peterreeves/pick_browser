@@ -555,8 +555,8 @@ async fn add_rule(
     pattern: String,
     browser_id: String,
 ) -> Result<(), String> {
-    // Validate the regex pattern
-    regex::Regex::new(&pattern).map_err(|e| format!("Invalid regex pattern: {}", e))?;
+    // Validate the glob pattern by converting it
+    glob_to_regex(&pattern)?;
 
     let mut config = Config::load(&app_handle)?;
 
@@ -582,8 +582,8 @@ async fn update_rule(
     pattern: String,
     browser_id: String,
 ) -> Result<(), String> {
-    // Validate the regex pattern
-    regex::Regex::new(&pattern).map_err(|e| format!("Invalid regex pattern: {}", e))?;
+    // Validate the glob pattern by converting it
+    glob_to_regex(&pattern)?;
 
     let mut config = Config::load(&app_handle)?;
 
@@ -621,6 +621,20 @@ async fn delete_rule(app_handle: tauri::AppHandle, id: String) -> Result<(), Str
     Ok(())
 }
 
+/// Convert a glob pattern (where `*` matches anything) into a regex pattern.
+/// All characters except `*` are treated as literals.
+fn glob_to_regex(pattern: &str) -> Result<regex::Regex, String> {
+    let mut regex_str = String::from("(?i)^");
+    for part in pattern.split('*') {
+        regex_str.push_str(&regex::escape(part));
+        regex_str.push_str(".*");
+    }
+    // Remove the trailing `.*` added after the last split part
+    regex_str.truncate(regex_str.len() - 2);
+    regex_str.push('$');
+    regex::Regex::new(&regex_str).map_err(|e| format!("Invalid pattern '{}': {}", pattern, e))
+}
+
 /// Check if a URL matches any rule. Returns the browser_id of the first matching rule, or null.
 /// An empty browser_id means "prompt to choose" — return null to let the user pick.
 #[tauri::command]
@@ -628,8 +642,7 @@ fn check_rules(app_handle: tauri::AppHandle, url: String) -> Result<Option<Strin
     let config = Config::load(&app_handle)?;
 
     for rule in &config.rules {
-        let re = regex::Regex::new(&rule.pattern)
-            .map_err(|e| format!("Invalid regex pattern '{}': {}", rule.pattern, e))?;
+        let re = glob_to_regex(&rule.pattern)?;
         if re.is_match(&url) {
             // Empty browser_id means "prompt to choose" — stop checking further rules
             if rule.browser_id.is_empty() {

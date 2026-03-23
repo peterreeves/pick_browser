@@ -15,7 +15,7 @@ pub struct Browser {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Rule {
     pub id: String,
-    pub pattern: String,    // Regex pattern to match against URLs
+    pub pattern: String,    // Glob pattern to match against URLs (* = wildcard)
     pub browser_id: String, // ID of the browser to open matching URLs in
 }
 

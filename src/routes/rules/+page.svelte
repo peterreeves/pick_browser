@@ -8,6 +8,7 @@
     import X from "@lucide/svelte/icons/x";
     import Search from "@lucide/svelte/icons/search";
     import type { Browser, Rule } from "$lib/components/defs";
+    import { globMatches } from "$lib/glob";
 
     const PROMPT_TO_CHOOSE = "";
 
@@ -78,25 +79,16 @@
 
     // Test URL state
     let testUrl = $state("");
-    let testResult = $state<string | null>(null);
-    let testing = $state(false);
 
-    const testUrlMatch = async () => {
-        if (!testUrl) return;
-        testing = true;
-        try {
-            const browserId = await invoke<string | null>("check_rules", { url: testUrl });
-            if (browserId) {
-                testResult = `Opens in: ${getBrowserName(browserId)}`;
-            } else {
-                testResult = "No matching rule — will prompt to choose";
+    const testMatchResult = $derived.by(() => {
+        if (!testUrl) return null;
+        for (const rule of rules) {
+            if (globMatches(rule.pattern, testUrl)) {
+                return rule;
             }
-        } catch (err) {
-            testResult = `Error: ${String(err)}`;
-        } finally {
-            testing = false;
         }
-    };
+        return null;
+    });
 
     const addRule = async (ev: SubmitEvent) => {
         ev.preventDefault();
@@ -119,6 +111,13 @@
         }
     };
 </script>
+
+{#snippet highlightPattern(pattern: string)}
+    {@const parts = pattern.split("*")}
+    {#each parts as part, i (i)}
+        {part}{#if i < parts.length - 1}<span class="wildcard">*</span>{/if}
+    {/each}
+{/snippet}
 
 <main class="container">
     <header>
@@ -147,7 +146,7 @@
                                     bind:value={editPattern}
                                     id="edit-pattern"
                                     type="text"
-                                    placeholder="e.g. github\.com"
+                                    placeholder="e.g. github.com*"
                                     class="mono-input"
                                 />
                             </div>
@@ -185,7 +184,9 @@
                 {:else}
                     <div class="rule-item">
                         <div class="rule-info">
-                            <code class="rule-pattern">{rule.pattern}</code>
+                            <code class="rule-pattern">
+                                {@render highlightPattern(rule.pattern)}
+                            </code>
                             <span class="rule-browser">{getBrowserName(rule.browser_id)}</span>
                         </div>
                         <div class="rule-actions">
@@ -224,19 +225,21 @@
                     autocapitalize="off"
                     autocorrect="off"
                     spellcheck="false"
-                    onkeydown={(e) => e.key === "Enter" && testUrlMatch()}
                 />
             </div>
-            <button
-                class="btn"
-                onclick={testUrlMatch}
-                disabled={testing || !testUrl}
-            >
-                Test
-            </button>
         </div>
-        {#if testResult}
-            <p class="test-result">{testResult}</p>
+        {#if testUrl}
+            <p class="test-result">
+                {#if testMatchResult}
+                    {#if testMatchResult.browser_id === PROMPT_TO_CHOOSE}
+                        Matched — will prompt to choose
+                    {:else}
+                        Opens in: {getBrowserName(testMatchResult.browser_id)}
+                    {/if}
+                {:else}
+                    No matching rule — will prompt to choose
+                {/if}
+            </p>
         {/if}
     </section>
 
@@ -249,7 +252,7 @@
                     bind:value={newPattern}
                     id="new-pattern"
                     type="text"
-                    placeholder="e.g. github\.com"
+                    placeholder="e.g. github.com*"
                     class="mono-input"
                 />
             </div>
@@ -269,11 +272,7 @@
             {/if}
 
             <div class="form-actions">
-                <button
-                    type="submit"
-                    class="btn btn-primary"
-                    disabled={adding || !newPattern}
-                >
+                <button type="submit" class="btn btn-primary" disabled={adding || !newPattern}>
                     <Plus size={16} />
                     {#if adding}
                         Adding...
@@ -517,5 +516,10 @@
         display: inline-flex;
         align-items: center;
         gap: 0.375rem;
+    }
+
+    .wildcard {
+        color: var(--accent);
+        font-weight: 700;
     }
 </style>
