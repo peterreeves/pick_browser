@@ -20,64 +20,32 @@ fn get_browsers(app_handle: tauri::AppHandle) -> Result<Vec<Browser>, String> {
 async fn is_default_browser() -> Result<bool, String> {
     #[cfg(target_os = "windows")]
     {
-        use std::env;
-        use winreg::enums::*;
-        use winreg::RegKey;
+        use windows::core::HSTRING;
+        use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED};
+        use windows::Win32::UI::Shell::{ApplicationAssociationRegistration, IApplicationAssociationRegistration, AT_URLPROTOCOL, AL_EFFECTIVE};
 
-        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-        let hkcr = RegKey::predef(HKEY_CLASSES_ROOT);
+        unsafe {
+            // COM must be initialised on this thread
+            let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
 
-        let our_exe = env::current_exe()
-            .map_err(|e| format!("Failed to get executable path: {}", e))?
-            .to_string_lossy()
-            .to_lowercase();
+            let reg: IApplicationAssociationRegistration =
+                CoCreateInstance(&ApplicationAssociationRegistration, None, CLSCTX_INPROC_SERVER)
+                    .map_err(|e| format!("Failed to create COM instance: {}", e))?;
 
-        // Check both http and https — both must point to us
-        for scheme in &["http", "https"] {
-            let user_choice_path = format!(
-                r"Software\Microsoft\Windows\Shell\Associations\UrlAssociations\{}\UserChoice",
-                scheme
-            );
+            for scheme in &["http", "https"] {
+                let scheme_h = HSTRING::from(*scheme);
+                let prog_id = reg
+                    .QueryCurrentDefault(&scheme_h, AT_URLPROTOCOL, AL_EFFECTIVE)
+                    .map_err(|e| format!("Failed to query default for {}: {}", scheme, e))?;
 
-            let prog_id = match hkcu.open_subkey(&user_choice_path) {
-                Ok(key) => match key.get_value::<String, _>("ProgId") {
-                    Ok(id) => id,
-                    Err(_) => return Ok(false),
-                },
-                Err(_) => return Ok(false),
-            };
-
-            // Quick check: if the ProgId contains our name, it's ours
-            if prog_id.contains("PickBrowser") || prog_id.contains("pick_browser") {
-                continue;
-            }
-
-            // Otherwise, resolve the ProgId's shell\open\command to see if it
-            // points at our executable (handles AppX hashes and other formats)
-            let command_path = format!(r"{}\shell\open\command", prog_id);
-
-            // Try HKCU\Software\Classes first, then HKCR
-            let command_str: Option<String> = hkcu
-                .open_subkey(format!(r"Software\Classes\{}", command_path))
-                .and_then(|key| key.get_value(""))
-                .ok()
-                .or_else(|| {
-                    hkcr.open_subkey(&command_path)
-                        .and_then(|key| key.get_value(""))
-                        .ok()
-                });
-
-            match command_str {
-                Some(cmd) => {
-                    if !cmd.to_lowercase().contains(&our_exe) {
-                        return Ok(false);
-                    }
+                let prog_id_str = prog_id.to_string().map_err(|e| format!("Failed to read ProgId string: {}", e))?;
+                if !prog_id_str.contains("PickBrowser") && !prog_id_str.contains("pick_browser") {
+                    return Ok(false);
                 }
-                None => return Ok(false),
             }
-        }
 
-        Ok(true)
+            Ok(true)
+        }
     }
 
     #[cfg(target_os = "macos")]
